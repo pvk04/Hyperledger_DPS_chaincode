@@ -9,7 +9,7 @@ class UserList {
   }
 
   async getUsers() {
-    const userData = await this.ctx.getState(this.KEY);
+    const userData = await this.ctx.stub.getState(this.KEY);
 
     return JSON.parse(userData.toString());
   }
@@ -28,7 +28,7 @@ class UserList {
   }
 
   async setUser(login, user) {
-    const users = this.getUsers();
+    const users = await this.getUsers();
     users[login] = user;
 
     return await this.setUsers(users);
@@ -85,7 +85,7 @@ class UserContract extends Contract {
   }
 
   // функция для инициализаци контракта
-  static async init(ctx) {
+  async init(ctx) {
     const users = {};
     users["Водитель 1"] = new User({
       fio: "Иванов Иван Иванович",
@@ -112,16 +112,16 @@ class UserContract extends Contract {
     return await ctx.userList.setUsers(users);
   }
 
-  static async getUsers(ctx) {
+  async getUsers(ctx) {
     return await ctx.userList.getUsers();
   }
 
-  static async getUser(ctx, login) {
+  async getUser(ctx, login) {
     return await ctx.userList.getUser(login);
   }
 
   // функция для регистрации нового пользователя. принимает контекст, логин, фио, будет ли пользователь сотрудником ДПС, год стажа, неоплаченные штрафы и баланс
-  static async newUser(ctx, login, fio, isDPS, years, unpaidPenaltys, balance) {
+  async newUser(ctx, login, fio, isDPS, years, unpaidPenaltys, balance) {
     const isExists = await ctx.userList.getUser(login);
 
     if (isExists) {
@@ -146,7 +146,7 @@ class UserContract extends Contract {
   }
 
   // функция для создания штрафа. принимает контекст, логин вызвавшего, номер удостоверения того, кому выписывается штраф и текущая дата с сервера
-  static async makePenalty(ctx, login, license, date) {
+  async makePenalty(ctx, login, license, date) {
     const user = await ctx.licensesList.getLicense(license);
     const loginTo = user.driverLogin;
     const worker = await ctx.userList.getUser(login);
@@ -171,8 +171,8 @@ class UserContract extends Contract {
   }
 
   // функция для оплаты штрафа. принимает контекст, логин вызвавшего, индекс штрафа и текущую дату с сервера
-  static async payPenalty(ctx, login, penaltyId, date) {
-    const user = ctx.userList.getUser(login);
+  async payPenalty(ctx, login, penaltyId, date) {
+    const user = await ctx.userList.getUser(login);
 
     if (!user) {
       return { error: "Пользователя с такми логином нет" };
@@ -180,7 +180,7 @@ class UserContract extends Contract {
     if (!user.penaltys[penaltyId]) {
       return { error: "Такого штрафа нет" };
     }
-    if (!user.penaltys[penaltyId].status) {
+    if (user.penaltys[penaltyId].status) {
       return { error: "Штраф уже оплачен" };
     }
 
@@ -213,7 +213,7 @@ class UserContract extends Contract {
   }
 
   // фукнция для продления удостоверения. принимает контекст, логин вызвавшего и текущую дату с сервера
-  static async extendLicense(ctx, login, date) {
+  async extendLicense(ctx, login, date) {
     const user = await ctx.userList.getUser(login);
     const license = await ctx.licensesList.getLicense(user.licenseNumber);
 
@@ -240,16 +240,21 @@ class UserContract extends Contract {
       };
     }
 
-    const validity =
-      license.validity.slice(0, 6) +
-      (parseInt(license.validity.slice(6, 10)) + 10);
+    // const validity =
+    //   license.validity.slice(0, 6) +
+    //   (parseInt(license.validity.slice(6, 10)) + 10);
+    const validity = `${date1.getDate()}.${
+      parseInt(date1.getMonth()) < 9
+        ? "0" + (date1.getMonth() + 1)
+        : date1.getMonth() + 1
+    }.${parseInt(date1.getFullYear()) + 10}`;
     license.validity = validity;
 
     return await ctx.licensesList.setLicense(user.licenseNumber, license);
   }
 
   // Функция для добавления новой машины. принимает контекст, логин вызвавшего, категорию транспорта, цену и срок эксплуатации
-  static async addCar(ctx, login, category, price, term) {
+  async addCar(ctx, login, category, price, term) {
     const user = await ctx.userList.getUser(login);
 
     if (!user) {
@@ -275,6 +280,37 @@ class UserContract extends Contract {
     user.cars.push(car);
 
     return await ctx.userList.setUser(login, user);
+  }
+
+  // функция для добавления удостоверения водителю. принимает логин водителя, номер удостоверения, его срок действия и категория
+  async addDriverToLicense(ctx, login, number, validity, category) {
+    const driver = await ctx.userList.getUser(login);
+    const license = await ctx.licensesList.getLicense(number);
+
+    if (!driver) {
+      return { error: "Такого пользователя не существует" };
+    }
+    if (driver.licenseNumber != "") {
+      return { error: "Пользователь уже имеет водительское удостоверение" };
+    }
+    if (!license) {
+      return { error: "Удостоверения с таким номером нет в базе" };
+    }
+    if (license.driverLogin != "") {
+      return { error: "Это удостоверение принадлежит другому водителю" };
+    }
+    if (
+      license.number != number ||
+      license.validity != validity ||
+      license.category != category
+    ) {
+      return { error: "Введенные данные не совпадают" };
+    }
+
+    license.driverLogin = login;
+    await ctx.licensesList.setLicense(number, license);
+    driver.licenseNumber = number;
+    return await ctx.userList.setUser(login, driver);
   }
 }
 

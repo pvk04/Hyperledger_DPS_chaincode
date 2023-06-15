@@ -1,5 +1,5 @@
 const { Contract, Context } = require("fabric-contract-api");
-const { UserList } = require("./users");
+// const { UserList } = require("./users");
 
 class LicensesList {
   constructor(ctx) {
@@ -38,7 +38,7 @@ class LicensesContext extends Context {
   constructor() {
     super();
     this.licensesList = new LicensesList(this);
-    this.userList = new UserList(this);
+    // this.userList = new UserList(this);
   }
 }
 
@@ -57,7 +57,7 @@ class LicensesContract extends Contract {
   }
 
   // функция для инициализации контракта
-  static async init(ctx) {
+  async init(ctx) {
     const licenses = {};
     licenses["000"] = new License("000", "11.01.2021", "A");
     licenses["111"] = new License("111", "12.05.2025", "B");
@@ -71,40 +71,40 @@ class LicensesContract extends Contract {
   }
 
   //
-  static async getLicenses() {
+  async getLicenses() {
     return await ctx.licensesList.getLicenses();
   }
 
-  // функция для добавления удостоверения водителю. принимает логин водителя, номер удостоверения, его срок действия и категория
-  static async addDriverToLicense(ctx, login, number, validity, category) {
-    const driver = await ctx.userList.getUser(login);
-    const license = await ctx.licensesList.getLicense(number);
+  // // функция для добавления удостоверения водителю. принимает логин водителя, номер удостоверения, его срок действия и категория
+  // async addDriverToLicense(ctx, login, number, validity, category) {
+  //   const driver = await ctx.userList.getUser(login);
+  //   const license = await ctx.licensesList.getLicense(number);
 
-    if (!driver) {
-      return { error: "Такого пользователя не существует" };
-    }
-    if (driver.licenseNumber != "") {
-      return { error: "Пользователь уже имеет водительское удостоверение" };
-    }
-    if (!license) {
-      return { error: "Удостоверения с таким номером нет в базе" };
-    }
-    if (license.driverLogin != "") {
-      return { error: "Это удостоверение принадлежит другому водителю" };
-    }
-    if (
-      license.number != number ||
-      license.validity != validity ||
-      license.category != category
-    ) {
-      return { error: "Введенные данные не совпадают" };
-    }
+  //   if (!driver) {
+  //     return { error: "Такого пользователя не существует" };
+  //   }
+  //   if (driver.licenseNumber != "") {
+  //     return { error: "Пользователь уже имеет водительское удостоверение" };
+  //   }
+  //   if (!license) {
+  //     return { error: "Удостоверения с таким номером нет в базе" };
+  //   }
+  //   if (license.driverLogin != "") {
+  //     return { error: "Это удостоверение принадлежит другому водителю" };
+  //   }
+  //   if (
+  //     license.number != number ||
+  //     license.validity != validity ||
+  //     license.category != category
+  //   ) {
+  //     return { error: "Введенные данные не совпадают" };
+  //   }
 
-    license.driverLogin = login;
-    await ctx.licensesList.setLicense(number, license);
-    driver.licenseNumber = number;
-    return await ctx.userList.setUser(login, user);
-  }
+  //   license.driverLogin = login;
+  //   await ctx.licensesList.setLicense(number, license);
+  //   driver.licenseNumber = number;
+  //   return await ctx.userList.setUser(login, user);
+  // }
 }
 
 module.exports.LicensesContract = LicensesContract;
