@@ -187,7 +187,7 @@ class UserContract extends Contract {
     const date1 = new Date(date);
     const date2 = new Date(user.penaltys[penaltyId].date);
 
-    const difference = date1.getTime() - date2.getTime();
+    const difference = date2.getTime() - date1.getTime();
 
     const difference_days = difference / (1000 * 3600 * 24);
 
@@ -195,8 +195,8 @@ class UserContract extends Contract {
       if (user.balance < 5) {
         return { error: "Не хватает денег на балансе" };
       }
-      user.balance -= 5;
-      user.unpaidPenaltys -= 1;
+      user.balance = user.balance - 5;
+      user.unpaidPenaltys = user.unpaidPenaltys - 1;
       user.penaltys[penaltyId].status = true;
       await ctx.bankList.increaseBalance(5);
       return await ctx.userList.setUser(login, user);
@@ -205,8 +205,8 @@ class UserContract extends Contract {
     if (user.balance < 10) {
       return { error: "Не хватает денег на балансе" };
     }
-    user.balance -= 10;
-    user.unpaidPenaltys -= 1;
+    user.balance = user.balance - 10;
+    user.unpaidPenaltys = user.unpaidPenaltys - 1;
     user.penaltys[penaltyId].status = true;
     await ctx.bankList.increaseBalance(10);
     return await ctx.userList.setUser(login, user);
@@ -240,9 +240,6 @@ class UserContract extends Contract {
       };
     }
 
-    // const validity =
-    //   license.validity.slice(0, 6) +
-    //   (parseInt(license.validity.slice(6, 10)) + 10);
     const validity = `${date1.getDate()}.${
       parseInt(date1.getMonth()) < 9
         ? "0" + (date1.getMonth() + 1)
